@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Family members can access family data
+    match /families/{familyId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in resource.data.parentIds ||
+        request.auth.uid in resource.data.childIds;
+    }
+    
+    // Devices belong to users
+    match /devices/{deviceId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // Rules belong to families
+    match /rules/{ruleId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid in get(/databases/$(database)/documents/families/$(resource.data.familyId)).data.parentIds;
+    }
+    
+    // Requests belong to families
+    match /requests/{requestId} {
+      allow read, write: if request.auth != null && 
+        (request.auth.uid == resource.data.requesterId ||
+         request.auth.uid in get(/databases/$(database)/documents/families/$(resource.data.familyId)).data.parentIds);
+    }
+    
+    // Notifications belong to users
+    match /notifications/{notificationId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+  }
+}
